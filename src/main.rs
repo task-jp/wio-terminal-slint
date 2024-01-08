@@ -2,6 +2,8 @@
 #![no_main]
 
 use cortex_m::interrupt::{free as disable_interrupts, CriticalSection};
+use cortex_m::peripheral::NVIC;
+use embedded_hal::digital::v2::StatefulOutputPin;
 use heapless::{consts::U8, spsc::Queue};
 use panic_halt as _;
 use wio::hal::clock::GenericClockController;
@@ -17,6 +19,17 @@ mod slint_integration;
 #[cfg(feature = "gui")]
 slint::include_modules!();
 
+struct Ctx {
+    #[cfg(feature = "gui")]
+    app: MainWindow,
+    #[cfg(feature = "led")]
+    led:
+        wio::hal::gpio::Pin<wio::hal::gpio::PA15, wio::hal::gpio::Output<wio::hal::gpio::PushPull>>,
+    tc3: wio::hal::timer::TimerCounter3,
+}
+
+static mut CTX: Option<Ctx> = None;
+
 #[entry]
 fn main() -> ! {
     let mut peripherals = Peripherals::take().unwrap();
@@ -31,8 +44,18 @@ fn main() -> ! {
     let mut delay = Delay::new(core.SYST, &mut clocks);
     let sets = Pins::new(peripherals.PORT).split();
 
-    // TODO: use the timer to update animations
-    // let timer = wio::hal::Timer::new(pac.TIMER, &mut pac.RESETS);
+    let gclk5 = clocks
+        .get_gclk(wio::pac::gclk::pchctrl::GEN_A::GCLK5)
+        .unwrap();
+    let timer_clock = clocks.tc2_tc3(&gclk5).unwrap();
+    let mut tc3 =
+        wio::hal::timer::TimerCounter::tc3_(&timer_clock, peripherals.TC3, &mut peripherals.MCLK);
+
+    unsafe {
+        NVIC::unmask(interrupt::TC3);
+    }
+    tc3.start(1.secs());
+    tc3.enable_interrupt();
 
     let (display, _backlight) = sets
         .display
@@ -57,13 +80,23 @@ fn main() -> ! {
     let mut consumer = unsafe { Q.split().1 };
 
     #[cfg(feature = "led")]
-    let mut user_led = sets.user_led.into_push_pull_output();
- 
+    let led = sets.user_led.into_push_pull_output();
+
     #[cfg(feature = "gui")]
     let mut slint_integration = slint_integration::SlintIntegration::new(display);
 
     #[cfg(feature = "gui")]
     let app = MainWindow::new().expect("Failed to load UI");
+
+    unsafe {
+        CTX = Some(Ctx {
+            #[cfg(feature = "gui")]
+            app,
+            #[cfg(feature = "led")]
+            led,
+            tc3,
+        });
+    }
 
     loop {
         #[cfg(feature = "gui")]
@@ -78,15 +111,7 @@ fn main() -> ! {
                 Button::Left => "Left",
                 Button::Right => "Right",
                 Button::Down => "Down",
-                Button::Click => {
-                    #[cfg(feature = "led")]
-                    {
-                        user_led.toggle().unwrap();
-                        #[cfg(feature = "gui")]
-                        app.set_led_on(button_event.down);
-                    }
-                    "Return"
-                },
+                Button::Click => "Return",
             };
             #[cfg(feature = "gui")]
             slint_integration.button_event(key, button_event.down);
@@ -114,3 +139,17 @@ button_interrupt!(
         q.enqueue(event).ok();
     }
 );
+
+#[interrupt]
+fn TC3() {
+    unsafe {
+        let ctx = CTX.as_mut().unwrap();
+        ctx.tc3.wait().unwrap();
+        #[cfg(feature = "led")]
+        {
+            ctx.led.toggle().unwrap();
+            #[cfg(feature = "gui")]
+            ctx.app.set_led_on(ctx.led.is_set_high().unwrap());
+        }
+    }
+}
