@@ -70,6 +70,22 @@ component WioButtons {
         }
 }
 
+component WioLed {
+    width: Consts.width;
+    height: Consts.height;
+    in property <bool> on: false;
+    if on : Rectangle {
+        x: 180px;
+        y: 210px;
+        width: 20px;
+        height: 20px;
+        border-radius: 10px;
+        border-color: cyan;
+        border-width: 2px;
+        background: blue;
+    }
+}
+
 component WioImage inherits Image {
     width: 86px;
     height: 64px;
@@ -88,9 +104,11 @@ component WioSplash {
     in-out property<bool> is-right-pressed;
     in-out property<bool> is-down-pressed;
     in-out property<bool> is-return-pressed;
+    in property <bool> led-on <=> led.on;
 
+    led := WioLed {}
     WioCase {}
-    WioButtons{
+    WioButtons {
         f_n: [is-button1-pressed, is-button2-pressed, is-button3-pressed];
         dx: is-left-pressed ? -1 : is-right-pressed ? 1 : 0;
         dy: is-up-pressed ? -1 : is-down-pressed ? 1 : 0;
@@ -113,6 +131,8 @@ export component MainWindow inherits Window {
     width: Consts.width;
     height: Consts.height;
     default-font-family: "Noto Sans";
+    in property <bool> led-on <=> wio_splash.led-on;
+
     wio_splash := WioSplash {}
 
     forward-focus: my-key-handler;

@@ -56,11 +56,14 @@ fn main() -> ! {
 
     let mut consumer = unsafe { Q.split().1 };
 
+    #[cfg(feature = "led")]
+    let mut user_led = sets.user_led.into_push_pull_output();
+ 
     #[cfg(feature = "gui")]
     let mut slint_integration = slint_integration::SlintIntegration::new(display);
 
     #[cfg(feature = "gui")]
-    let _ui = MainWindow::new().expect("Failed to load UI");
+    let app = MainWindow::new().expect("Failed to load UI");
 
     loop {
         #[cfg(feature = "gui")]
@@ -75,7 +78,15 @@ fn main() -> ! {
                 Button::Left => "Left",
                 Button::Right => "Right",
                 Button::Down => "Down",
-                Button::Click => "Return",
+                Button::Click => {
+                    #[cfg(feature = "led")]
+                    {
+                        user_led.toggle().unwrap();
+                        #[cfg(feature = "gui")]
+                        app.set_led_on(button_event.down);
+                    }
+                    "Return"
+                },
             };
             #[cfg(feature = "gui")]
             slint_integration.button_event(key, button_event.down);
