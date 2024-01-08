@@ -60,7 +60,7 @@ fn main() -> ! {
     let mut slint_integration = slint_integration::SlintIntegration::new(display);
 
     #[cfg(feature = "gui")]
-    let _ui = WioSplash::new().expect("Failed to load UI");
+    let _ui = MainWindow::new().expect("Failed to load UI");
 
     loop {
         #[cfg(feature = "gui")]
