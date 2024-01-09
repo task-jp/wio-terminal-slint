@@ -70,20 +70,17 @@ component WioButtons {
         }
 }
 
-component WioLed {
-    width: Consts.width;
-    height: Consts.height;
+component WioLed inherits Rectangle {
     in property <bool> on: false;
-    if on : Rectangle {
-        x: 180px;
-        y: 210px;
-        width: 20px;
-        height: 20px;
-        border-radius: 10px;
-        border-color: cyan;
-        border-width: 2px;
-        background: blue;
-    }
+    visible: on;
+    x: 180px;
+    y: 210px;
+    width: 20px;
+    height: 20px;
+    border-radius: 10px;
+    border-color: self.background.mix(white, 0.25);
+    border-width: 3px;
+    background: blue;
 }
 
 component WioImage inherits Image {
@@ -107,6 +104,7 @@ component WioSplash {
     in property <bool> led-on <=> led.on;
 
     led := WioLed {}
+    WioLed { x: 120px; background: green; on: true; }
     WioCase {}
     WioButtons {
         f_n: [is-button1-pressed, is-button2-pressed, is-button3-pressed];
