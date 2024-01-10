@@ -6,71 +6,35 @@ global Consts {
     out property <color> bg-color: black;
 }
 
-component WioCase {
-    width: Consts.width;
-    height: Consts.height;
-    Rectangle {
-        x: 20px;
-        y: 20px;
-        width: 280px;
-        height: 200px;
-        border-color: black;
-        border-width: 2px;
-        background: Consts.bg-color;
-    }
-
-    Rectangle {
-        x: 20px;
-        y: 180px;
-        width: 280px;
-        height: 40px;
-        background: Consts.case-color;
-    }
-
-    for i[index] in [0, 1, 2, 3] : Rectangle {
-        Rectangle {
-            x: 40px + i * 15px;
-            y: 190px;
-            width: 5px;
-            height: 20px;
-            border-radius: 2px;
-            background: Consts.bg-color;
-        }
-    }
+component Button inherits Rectangle {
+    width: 40px;
+    height: 20px;
+    border-radius: 5px;
+    border-color: white;
+    border-width: 1px;
+    background: Consts.button-color;
 }
 
-component WioButtons {
-    width: Consts.width;
-    height: Consts.height;
-    in property<[bool]> f_n: [false, false, false];
+component Stick {
     in property <int> dx: 0;
     in property <int> dy: 0;
     in property <bool> clicked: false;
-    for i[index] in [0, 1, 2] : Rectangle {
-        Rectangle {
-            x: 40px + i * 60px;
-            y: f_n[i] ? 18px : 15px;
-            width: 40px;
-            height: f_n[i] ? 2px : 5px;
-            background: Consts.button-color;
-        }
-    }
 
     Rectangle {
-        x: 260px;
-        y: 180px;
-        Rectangle {
-            x: dx * 5px - self.width / 2;
-            y: dy * 5px - self.height / 2;
-            width: clicked ? 30px : 40px;
-            height: self.width;
-            border-radius: self.width / 2;
-            background: Consts.button-color;
-        }
-        }
+        x: dx * 5px - self.width / 2;
+        y: dy * 5px - self.height / 2;
+        width: clicked ? 30px : 40px;
+        height: self.width;
+        border-radius: self.width / 2;
+        background: Consts.button-color;
+        drop-shadow-offset-x: clicked ? 1px : 2px;
+        drop-shadow-offset-y: clicked ? 1px : 2px;
+        drop-shadow-color: black;
+        drop-shadow-blur: clicked ? 2px : 4px;
+    }
 }
 
-component WioLed inherits Rectangle {
+component Led inherits Rectangle {
     in property <bool> on: false;
     visible: on;
     x: 180px;
@@ -88,10 +52,10 @@ component WioImage inherits Image {
     height: 64px;
 }
 
-component WioSplash {
+component WioTerminal {
     width: Consts.width;
     height: Consts.height;
-    in property <color> text-color: green;
+    in property <color> text-color: lime;
     in property <image> image: @image-url("ferris.png");
     in-out property<bool> is-button1-pressed;
     in-out property<bool> is-button2-pressed;
@@ -101,24 +65,70 @@ component WioSplash {
     in-out property<bool> is-right-pressed;
     in-out property<bool> is-down-pressed;
     in-out property<bool> is-return-pressed;
-    in property <bool> led-on <=> led.on;
+    in property <bool> led-on;
 
-    led := WioLed {}
-    WioLed { x: 120px; background: green; on: true; }
-    WioCase {}
-    WioButtons {
-        f_n: [is-button1-pressed, is-button2-pressed, is-button3-pressed];
+    Button {
+        x: 40px;
+        y: is-button1-pressed ? 15px : 10px;
+    }
+    Button {
+        x: 90px;
+        y: is-button2-pressed ? 15px : 10px;
+    }
+    Button {
+        x: 140px;
+        y: is-button3-pressed ? 15px : 10px;
+    }
+
+    base := Rectangle { 
+        x: 20px;
+        y: 20px;
+        width: 280px;
+        height: 200px;
+        background: Consts.case-color;
+        border-radius: 10px;
+        drop-shadow-offset-x: 5px;
+        drop-shadow-offset-y: 5px;
+        drop-shadow-color: gray;
+        drop-shadow-blur: 10px;
+    }
+    Led { x: 120px; background: lime; on: true; }
+    led := Led { on: root.led-on; }
+    lcd := Rectangle {
+        x: 25px;
+        y: 25px;
+        width: 270px;
+        height: 170px;
+        border-radius: 8px;
+        background: Consts.bg-color;
+        WioImage {
+            source: root.image;
+        }    
+    }
+
+    Stick {
+        x: 260px;
+        y: 190px;
         dx: is-left-pressed ? -1 : is-right-pressed ? 1 : 0;
         dy: is-up-pressed ? -1 : is-down-pressed ? 1 : 0;
         clicked: is-return-pressed;
     }
-    WioImage {
-        source: root.image;
+
+    // Buzzer
+    for i[index] in [0, 1, 2, 3] : Rectangle {
+        Rectangle {
+            x:45px + i * 10px;
+            y: 200px;
+            width: 5px;
+            height: 15px;
+            border-radius: 2px;
+            background: gray;
+        }
     }
 
     Text {
-        x: 30px;
-        y: 30px;
+        x: 60px;
+        y: 40px;
         text: "Booting Wio Terminal...";
         font-size: 16px;
         color: root.text-color;
@@ -128,66 +138,67 @@ component WioSplash {
 export component MainWindow inherits Window {
     width: Consts.width;
     height: Consts.height;
+    background: black;
     default-font-family: "Noto Sans";
-    in property <bool> led-on <=> wio_splash.led-on;
+    in property <bool> led-on <=> wio_terminal.led-on;
 
-    wio_splash := WioSplash {}
+    wio_terminal := WioTerminal {}
 
     forward-focus: my-key-handler;
     my-key-handler := FocusScope {
         key-pressed(event) => {
             debug(event.text);
             if (event.text == Key.F1) {
-                wio_splash.is-button1-pressed = true;
+                wio_terminal.is-button1-pressed = true;
             }
             if (event.text == Key.F2) {
-                wio_splash.is-button2-pressed = true;
+                wio_terminal.is-button2-pressed = true;
             }
             if (event.text == Key.F3) {
-                wio_splash.is-button3-pressed = true;
+                wio_terminal.is-button3-pressed = true;
             }
             if (event.text == Key.LeftArrow) {
-                wio_splash.is-left-pressed = true;
+                wio_terminal.is-left-pressed = true;
             }
             if (event.text == Key.RightArrow) {
-                wio_splash.is-right-pressed = true;
+                wio_terminal.is-right-pressed = true;
             }
             if (event.text == Key.UpArrow) {
-                wio_splash.is-up-pressed = true;
+                wio_terminal.is-up-pressed = true;
             }
             if (event.text == Key.DownArrow) {
-                wio_splash.is-down-pressed = true;
+                wio_terminal.is-down-pressed = true;
             }
             if (event.text == Key.Return) {
-                wio_splash.is-return-pressed = true;
+                wio_terminal.is-return-pressed = true;
             }
             accept
         }
         key-released(event) => {
             debug(event.text);
             if (event.text == Key.F1) {
-                wio_splash.is-button1-pressed = false;
+                wio_terminal.is-button1-pressed = false;
             }
             if (event.text == Key.F2) {
-                wio_splash.is-button2-pressed = false;
+                wio_terminal.is-button2-pressed = false;
             }
             if (event.text == Key.F3) {
-                wio_splash.is-button3-pressed = false;
+                wio_terminal.is-button3-pressed = false;
             }
             if (event.text == Key.LeftArrow) {
-                wio_splash.is-left-pressed = false;
+                wio_terminal.is-left-pressed = false;
             }
             if (event.text == Key.RightArrow) {
-                wio_splash.is-right-pressed = false;
+                wio_terminal.is-right-pressed = false;
             }
             if (event.text == Key.UpArrow) {
-                wio_splash.is-up-pressed = false;
+                wio_terminal.is-up-pressed = false;
             }
             if (event.text == Key.DownArrow) {
-                wio_splash.is-down-pressed = false;
+                wio_terminal.is-down-pressed = false;
             }
             if (event.text == Key.Return) {
-                wio_splash.is-return-pressed = false;
+                wio_terminal.is-return-pressed = false;
             }
             accept
         }
